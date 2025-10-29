@@ -2028,70 +2028,75 @@ window.rejectGroupRequest = async function(requestId) {
         });
 
         async function openChat(chatId) {
-            const chat = APP_STATE.chats.find(c => c.id === chatId);
-            if (!chat) return;
-            
-            APP_STATE.currentChat = chat;
-            
-            // Stop previous refresh interval
-            if (APP_STATE.messageRefreshInterval) {
-                clearInterval(APP_STATE.messageRefreshInterval);
-            }
-            
-            await loadMessages(chatId);
-            
-            // Get chat name
-            let chatName, chatAvatar;
-            if (chat.type === 'dm') {
-                const participant = APP_STATE.chatParticipants[chatId];
-                chatName = participant ? participant.display_name : 'Chat';
-                chatAvatar = participant?.avatar_url;
-            } else {
-                chatName = chat.title;
-                chatAvatar = chat.avatar_url;
-            }
-            
-            const chatArea = document.getElementById('chat-area');
-            chatArea.classList.add('active');
-            chatArea.innerHTML = `
-                <div class="chat-header">
-                    <div class="chat-avatar">
-                        ${chatAvatar ? `<img src="${chatAvatar}" alt="${chatName}">` : 
-                          (chat.type === 'group' ? '👥' : '👤')}
-                    </div>
-                    <div class="chat-header-info">
-                        <div class="chat-header-name">${chatName}</div>
-                        <div class="chat-header-status">${chat.type === 'group' ? `Code: ${chat.group_code}` : 'Online'}</div>
-                    </div>
-                </div>
-                <div class="chat-messages" id="chat-messages"></div>
-                <div class="chat-input-container">
-                    <input type="text" class="chat-input" id="message-input" placeholder="Type a message...">
-                    <button class="send-btn" id="send-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                        </svg>
-                    </button>
-                </div>
-            `;
-            
-            if (window.innerWidth <= 768) {
-                document.getElementById('sidebar').classList.add('chat-open');
-            }
-            
-            renderMessages();
-            
-            document.getElementById('send-btn').addEventListener('click', sendMessage);
-            document.getElementById('message-input').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') sendMessage();
-            });
-            
-            subscribeToChat(chatId);
-            
-            // Refresh messages every 1 second for instant updates
-            APP_STATE.messageRefreshInterval = setInterval(async () => {
-                await loadMessages(chatId, true); // Silent refresh
-            }, 1000);
+    // Push to browser history so Back returns to home, not closing the app
+    window.history.pushState({ screen: "chat", chatId }, "", "");
+
+    const chat = APP_STATE.chats.find(c => c.id === chatId);
+    if (!chat) return;
+
+    APP_STATE.currentChat = chat;
+
+    // Stop previous polling for messages, if any
+    if (APP_STATE.messageRefreshInterval) {
+        clearInterval(APP_STATE.messageRefreshInterval);
+        APP_STATE.messageRefreshInterval = null;
+    }
+
+    await loadMessages(chatId);
+
+    // Determine chat display name (use participant name in DM)
+    let chatName, chatAvatar;
+    if (chat.type === 'dm') {
+        const participant = APP_STATE.chatParticipants[chatId];
+        chatName = participant ? participant.display_name : 'Chat';
+        chatAvatar = participant?.avatar_url;
+    } else {
+        chatName = chat.title;
+        chatAvatar = chat.avatar_url;
+    }
+
+    // Render the chat area UI
+    const chatArea = document.getElementById('chat-area');
+    chatArea.classList.add('active');
+    chatArea.innerHTML = `
+        <div class="chat-header">
+            <div class="chat-avatar">
+                ${chatAvatar ? `<img src="${chatAvatar}" alt="${chatName}">` : (chat.type === 'group' ? '👥' : '👤')}
+            </div>
+            <div class="chat-header-info">
+                <div class="chat-header-name">${chatName}</div>
+                <div class="chat-header-status">${chat.type === 'group' ? `Code: ${chat.group_code}` : 'Online'}</div>
+            </div>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-container">
+            <input type="text" class="chat-input" id="message-input" placeholder="Type a message...">
+            <button class="send-btn" id="send-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+            </button>
+        </div>
+    `;
+
+    // Mobile: hide sidebar for chat
+    if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.add('chat-open');
+    }
+
+    renderMessages();
+
+    document.getElementById('send-btn').addEventListener('click', sendMessage);
+    document.getElementById('message-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    subscribeToChat(chatId);
+
+    // Poll for new messages every second for ultra-instant updates
+    APP_STATE.messageRefreshInterval = setInterval(async () => {
+        await loadMessages(chatId, true); // 'true' for silent (only re-renders if something changed)
+    }, 1000);
         }
 
         async function loadMessages(chatId, silent = false) {
@@ -2423,6 +2428,21 @@ window.rejectGroupRequest = async function(requestId) {
         }
 
         init();
+
+        window.onpopstate = function (event) {
+    // Default: show main/home screen (chat list, tabs) and hide all modals/sections
+    // You can also check event.state for custom logic
+    if (APP_STATE.currentChat) {
+        APP_STATE.currentChat = null; // Clear selected chat
+        document.getElementById('chat-area').classList.remove('active');
+        document.getElementById('sidebar').classList.remove('chat-open');
+        // Optionally re-render chat list or focus a main tab
+        renderChatList();
+    }
+    // Hide all modals
+    document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+    // Optionally reset any expanded boxes
+};
     </script>
 </body>
 </html>

@@ -11,6 +11,12 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+
     
     <title>SafeChat - Secure Messaging</title>
     
@@ -882,7 +888,7 @@
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h2>SafeChat by Continent</h2>
+                <h2>SafeChat</h2>
                 <div class="header-actions">
                     <button id="new-chat-btn" title="New Chat">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1055,6 +1061,110 @@
                 return false;
             }
         }
+
+        // ==================== FIREBASE FCM INITIALIZATION ====================
+let messaging = null;
+
+function initializeFirebase() {
+    try {
+        console.log("Initializing Firebase...");
+        
+        // REPLACE WITH YOUR CONFIG FROM STEP 3
+        const firebaseConfig = {
+            apiKey: "AIzaSyDy2rHzcIppo617w2F4qMCsmiXelvyzvXA",
+            authDomain: "continentchat.firebaseapp.com",
+            projectId: "continentchat",
+            storageBucket: "continentchat.firebasestorage.app",
+            messagingSenderId: "324915461865",
+            appId: "1:324915461865:web:dc885586cdc90c3fdeba78"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        
+        // Get messaging instance
+        messaging = firebase.messaging();
+        
+        // Handle foreground messages (when app is open)
+       messaging.onMessage((payload) => {
+    console.log('Message received (foreground):', payload);
+    
+    // Extract custom data
+    const senderName = payload.data.senderName || 'Someone';
+    const timestamp = new Date().toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+    });
+    
+    // Show in-app notification with custom format
+    showNotification(
+        `New message from ${senderName} • SafeChat • ${timestamp}`,
+        'success'
+    );
+    
+    // Refresh messages if in the same chat
+    if (APP_STATE.currentChat && payload.data && payload.data.chatId === APP_STATE.currentChat.id) {
+        loadMessages(APP_STATE.currentChat.id, true);
+    }
+});
+
+        
+        console.log("✅ Firebase initialized successfully");
+        return true;
+    } catch (error) {
+        console.error("❌ Firebase initialization error:", error);
+        return false;
+    }
+}
+
+// Request notification permission and get FCM token
+async function requestNotificationPermission() {
+    try {
+        console.log('Requesting notification permission...');
+        
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+            console.log('✅ Notification permission granted');
+            
+            // Get FCM token
+            // REPLACE 'YOUR_VAPID_KEY_HERE' WITH YOUR KEY FROM STEP 4
+            const token = await messaging.getToken({
+                vapidKey: 'BAFmFwgG2yh9bqTWkHjDG7pD4fP9LUxdky7SuN-G0duGqoUa8B8YIB4wrTIYkOrqQJO0ACNRLlgriuOU74nxsCg'
+            });
+            
+            console.log('FCM Token:', token);
+            
+            // Save token to Supabase
+            await saveFCMToken(token);
+            
+            return token;
+        } else {
+            console.log('❌ Notification permission denied');
+            return null;
+        }
+    } catch (error) {
+        console.error('Error getting FCM token:', error);
+        return null;
+    }
+}
+
+// Save FCM token to Supabase
+async function saveFCMToken(token) {
+    try {
+        const { error } = await supabase
+            .from('profiles')
+            .update({ fcm_token: token })
+            .eq('id', APP_STATE.currentUser.id);
+        
+        if (error) throw error;
+        
+        console.log('✅ FCM token saved to database');
+    } catch (error) {
+        console.error('Error saving FCM token:', error);
+    }
+}
+
 
         // ==================== GLOBAL STATE ====================
        const APP_STATE = {
@@ -2028,75 +2138,70 @@ window.rejectGroupRequest = async function(requestId) {
         });
 
         async function openChat(chatId) {
-    // Push to browser history so Back returns to home, not closing the app
-    window.history.pushState({ screen: "chat", chatId }, "", "");
-
-    const chat = APP_STATE.chats.find(c => c.id === chatId);
-    if (!chat) return;
-
-    APP_STATE.currentChat = chat;
-
-    // Stop previous polling for messages, if any
-    if (APP_STATE.messageRefreshInterval) {
-        clearInterval(APP_STATE.messageRefreshInterval);
-        APP_STATE.messageRefreshInterval = null;
-    }
-
-    await loadMessages(chatId);
-
-    // Determine chat display name (use participant name in DM)
-    let chatName, chatAvatar;
-    if (chat.type === 'dm') {
-        const participant = APP_STATE.chatParticipants[chatId];
-        chatName = participant ? participant.display_name : 'Chat';
-        chatAvatar = participant?.avatar_url;
-    } else {
-        chatName = chat.title;
-        chatAvatar = chat.avatar_url;
-    }
-
-    // Render the chat area UI
-    const chatArea = document.getElementById('chat-area');
-    chatArea.classList.add('active');
-    chatArea.innerHTML = `
-        <div class="chat-header">
-            <div class="chat-avatar">
-                ${chatAvatar ? `<img src="${chatAvatar}" alt="${chatName}">` : (chat.type === 'group' ? '👥' : '👤')}
-            </div>
-            <div class="chat-header-info">
-                <div class="chat-header-name">${chatName}</div>
-                <div class="chat-header-status">${chat.type === 'group' ? `Code: ${chat.group_code}` : 'Online'}</div>
-            </div>
-        </div>
-        <div class="chat-messages" id="chat-messages"></div>
-        <div class="chat-input-container">
-            <input type="text" class="chat-input" id="message-input" placeholder="Type a message...">
-            <button class="send-btn" id="send-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>
-            </button>
-        </div>
-    `;
-
-    // Mobile: hide sidebar for chat
-    if (window.innerWidth <= 768) {
-        document.getElementById('sidebar').classList.add('chat-open');
-    }
-
-    renderMessages();
-
-    document.getElementById('send-btn').addEventListener('click', sendMessage);
-    document.getElementById('message-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
-
-    subscribeToChat(chatId);
-
-    // Poll for new messages every second for ultra-instant updates
-    APP_STATE.messageRefreshInterval = setInterval(async () => {
-        await loadMessages(chatId, true); // 'true' for silent (only re-renders if something changed)
-    }, 1000);
+            const chat = APP_STATE.chats.find(c => c.id === chatId);
+            if (!chat) return;
+            
+            APP_STATE.currentChat = chat;
+            
+            // Stop previous refresh interval
+            if (APP_STATE.messageRefreshInterval) {
+                clearInterval(APP_STATE.messageRefreshInterval);
+            }
+            
+            await loadMessages(chatId);
+            
+            // Get chat name
+            let chatName, chatAvatar;
+            if (chat.type === 'dm') {
+                const participant = APP_STATE.chatParticipants[chatId];
+                chatName = participant ? participant.display_name : 'Chat';
+                chatAvatar = participant?.avatar_url;
+            } else {
+                chatName = chat.title;
+                chatAvatar = chat.avatar_url;
+            }
+            
+            const chatArea = document.getElementById('chat-area');
+            chatArea.classList.add('active');
+            chatArea.innerHTML = `
+                <div class="chat-header">
+                    <div class="chat-avatar">
+                        ${chatAvatar ? `<img src="${chatAvatar}" alt="${chatName}">` : 
+                          (chat.type === 'group' ? '👥' : '👤')}
+                    </div>
+                    <div class="chat-header-info">
+                        <div class="chat-header-name">${chatName}</div>
+                        <div class="chat-header-status">${chat.type === 'group' ? `Code: ${chat.group_code}` : 'Online'}</div>
+                    </div>
+                </div>
+                <div class="chat-messages" id="chat-messages"></div>
+                <div class="chat-input-container">
+                    <input type="text" class="chat-input" id="message-input" placeholder="Type a message...">
+                    <button class="send-btn" id="send-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.add('chat-open');
+            }
+            
+            renderMessages();
+            
+            document.getElementById('send-btn').addEventListener('click', sendMessage);
+            document.getElementById('message-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendMessage();
+            });
+            
+            subscribeToChat(chatId);
+            
+            // Refresh messages every 1 second for instant updates
+            APP_STATE.messageRefreshInterval = setInterval(async () => {
+                await loadMessages(chatId, true); // Silent refresh
+            }, 1000);
         }
 
         async function loadMessages(chatId, silent = false) {
@@ -2165,32 +2270,88 @@ window.rejectGroupRequest = async function(requestId) {
         }
 
         async function sendMessage() {
-            const input = document.getElementById('message-input');
-            const text = input.value.trim();
+    const input = document.getElementById('message-input');
+    const text = input.value.trim();
+    
+    if (!text || !APP_STATE.currentChat) return;
+    
+    try {
+        const { error } = await supabase
+            .from('messages')
+            .insert({
+                chat_id: APP_STATE.currentChat.id,
+                sender_id: APP_STATE.currentUser.id,
+                body_cipher: 'encrypted:' + text
+            });
+        
+        if (error) throw error;
+        
+        input.value = '';
+        
+        // Immediately reload messages
+        await loadMessages(APP_STATE.currentChat.id);
+        
+        // Send push notification (NEW LINE)
+        await sendPushNotification(text);
+        
+    } catch (error) {
+        console.error('Send message error:', error);
+        showNotification('Failed to send message', 'error');
+    }
+}
+
+
+        // Send push notification to chat members
+async function sendPushNotification(messageText) {
+    try {
+        // Get chat members (excluding sender)
+        const { data: members } = await supabase
+            .from('chat_members')
+            .select('user_id, profiles!inner(fcm_token, display_name)')
+            .eq('chat_id', APP_STATE.currentChat.id)
+            .neq('user_id', APP_STATE.currentUser.id);
+        
+        if (!members || members.length === 0) return;
+        
+        // Current time
+        const timestamp = new Date().toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+        
+        // Firebase Server Key (from Firebase Console → Cloud Messaging)
+        const FCM_SERVER_KEY = 'YOUR_FIREBASE_SERVER_KEY_HERE';
+        
+        // Send notification to each member
+        for (const member of members) {
+            if (!member.profiles?.fcm_token) continue;
             
-            if (!text || !APP_STATE.currentChat) return;
-            
-            try {
-                const { error } = await supabase
-                    .from('messages')
-                    .insert({
-                        chat_id: APP_STATE.currentChat.id,
-                        sender_id: APP_STATE.currentUser.id,
-                        body_cipher: 'encrypted:' + text
-                    });
-                
-                if (error) throw error;
-                
-                input.value = '';
-                
-                // Immediately reload messages
-                await loadMessages(APP_STATE.currentChat.id);
-                
-            } catch (error) {
-                console.error('Send message error:', error);
-                showNotification('Failed to send message', 'error');
-            }
+            // Send directly to FCM
+            await fetch('https://fcm.googleapis.com/fcm/send', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `key=${FCM_SERVER_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    to: member.profiles.fcm_token,
+                    data: {
+                        senderName: APP_STATE.currentUser.profile.display_name,
+                        messagePreview: messageText.substring(0, 50),
+                        timestamp: timestamp,
+                        chatId: APP_STATE.currentChat.id,
+                        senderId: APP_STATE.currentUser.id
+                    }
+                })
+            });
         }
+        
+    } catch (error) {
+        console.error('Send notification error:', error);
+        // Don't show error to user
+    }
+}
+
 
         // ==================== REALTIME SUBSCRIPTIONS ====================
         function setupRealtimeSubscriptions() {
@@ -2388,61 +2549,61 @@ window.rejectGroupRequest = async function(requestId) {
 
         // ==================== INITIALIZATION ====================
         async function init() {
-            if (!initializeSupabase()) {
-                showNotification('Failed to initialize app', 'error');
-                return;
-            }
+    // Initialize Supabase
+    if (!initializeSupabase()) {
+        showNotification('Failed to initialize app', 'error');
+        return;
+    }
+    
+    // Initialize Firebase FCM
+    initializeFirebase();
+    
+    await initIndexedDB();
+    
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (session && session.user) {
+        console.log('Existing session found, logging in...');
+        APP_STATE.currentUser = session.user;
+        const keyPair = await loadKeyPair(session.user.id);
+        
+        if (keyPair) {
+            APP_STATE.keyPair = keyPair;
+            await loadApp();
             
-            await initIndexedDB();
-            
-            const { data: { session }, error } = await supabase.auth.getSession();
-            
-            if (session && session.user) {
-                console.log('Existing session found, logging in...');
-                APP_STATE.currentUser = session.user;
-                const keyPair = await loadKeyPair(session.user.id);
-                
-                if (keyPair) {
-                    APP_STATE.keyPair = keyPair;
-                    await loadApp();
-                } else {
-                    console.log('Keys not found, please login again');
-                    await supabase.auth.signOut();
-                }
-            }
-            
-            supabase.auth.onAuthStateChange(async (event, session) => {
-                console.log('Auth state changed:', event);
-                
-                if (event === 'SIGNED_IN' && session) {
-                    APP_STATE.currentUser = session.user;
-                    const keyPair = await loadKeyPair(session.user.id);
-                    if (keyPair) {
-                        APP_STATE.keyPair = keyPair;
-                        await loadApp();
-                    }
-                } else if (event === 'SIGNED_OUT') {
-                    window.location.reload();
-                }
-            });
+            // Request notification permission after login
+            setTimeout(() => {
+                requestNotificationPermission();
+            }, 2000); // Wait 2 seconds after login
+        } else {
+            console.log('Keys not found, please login again');
+            await supabase.auth.signOut();
         }
+    }
+    
+    supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth state changed:', event);
+        
+        if (event === 'SIGNED_IN' && session) {
+            APP_STATE.currentUser = session.user;
+            const keyPair = await loadKeyPair(session.user.id);
+            if (keyPair) {
+                APP_STATE.keyPair = keyPair;
+                await loadApp();
+                
+                // Request notification permission
+                setTimeout(() => {
+                    requestNotificationPermission();
+                }, 2000);
+            }
+        } else if (event === 'SIGNED_OUT') {
+            window.location.reload();
+        }
+    });
+}
+
 
         init();
-
-        window.onpopstate = function (event) {
-    // Default: show main/home screen (chat list, tabs) and hide all modals/sections
-    // You can also check event.state for custom logic
-    if (APP_STATE.currentChat) {
-        APP_STATE.currentChat = null; // Clear selected chat
-        document.getElementById('chat-area').classList.remove('active');
-        document.getElementById('sidebar').classList.remove('chat-open');
-        // Optionally re-render chat list or focus a main tab
-        renderChatList();
-    }
-    // Hide all modals
-    document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
-    // Optionally reset any expanded boxes
-};
     </script>
 </body>
 </html>

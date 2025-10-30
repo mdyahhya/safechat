@@ -215,3 +215,53 @@ self.addEventListener('message', (event) => {
     );
   }
 });
+
+// Native Web Push - Handle push events
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push notification received:', event);
+  
+  let data = {};
+  
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    console.error('[SW] Error parsing push data:', e);
+  }
+  
+  const title = data.title || 'New message';
+  const options = {
+    body: data.body || 'You have a new message in SafeChat',
+    icon: '/chaticon.png',
+    badge: '/chaticon.png',
+    vibrate: [200, 100, 200],
+    tag: 'safechat-message',
+    data: data,
+    requireInteraction: false
+  };
+  
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+// Handle notification clicks
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification clicked:', event);
+  event.notification.close();
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Focus existing window
+      for (let client of clientList) {
+        if (client.url.includes(self.registration.scope) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // Open new window
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
+    })
+  );
+});
+

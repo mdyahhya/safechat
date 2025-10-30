@@ -1177,108 +1177,6 @@ async function unsubscribePush() {
 }
 
 
-        // ==================== FIREBASE FCM INITIALIZATION ====================
-// let messaging = null;
-
-// function initializeFirebase() {
-//     try {
-//         console.log("Initializing Firebase...");
-        
-//         // REPLACE WITH YOUR CONFIG FROM STEP 3
-//         const firebaseConfig = {
-//             apiKey: "AIzaSyDy2rHzcIppo617w2F4qMCsmiXelvyzvXA",
-//             authDomain: "continentchat.firebaseapp.com",
-//             projectId: "continentchat",
-//             storageBucket: "continentchat.firebasestorage.app",
-//             messagingSenderId: "324915461865",
-//             appId: "1:324915461865:web:dc885586cdc90c3fdeba78"
-//         };
-        
-//         // Initialize Firebase
-//         firebase.initializeApp(firebaseConfig);
-        
-//         // Get messaging instance
-//         messaging = firebase.messaging();
-        
-//         // Handle foreground messages (when app is open)
-//        messaging.onMessage((payload) => {
-//     console.log('Message received (foreground):', payload);
-    
-//     // Extract custom data
-//     const senderName = payload.data.senderName || 'Someone';
-//     const timestamp = new Date().toLocaleTimeString('en-US', { 
-//         hour: '2-digit', 
-//         minute: '2-digit' 
-//     });
-    
-//     // Show in-app notification with custom format
-//     showNotification(
-//         `New message from ${senderName} • SafeChat • ${timestamp}`,
-//         'success'
-//     );
-    
-//     // Refresh messages if in the same chat
-//     if (APP_STATE.currentChat && payload.data && payload.data.chatId === APP_STATE.currentChat.id) {
-//         loadMessages(APP_STATE.currentChat.id, true);
-//     }
-// });
-
-        
-//         console.log("✅ Firebase initialized successfully");
-//         return true;
-//     } catch (error) {
-//         console.error("❌ Firebase initialization error:", error);
-//         return false;
-//     }
-// }
-
-// Request notification permission and get FCM token
-// async function requestNotificationPermission() {
-//     try {
-//         console.log('Requesting notification permission...');
-        
-//         const permission = await Notification.requestPermission();
-        
-//         if (permission === 'granted') {
-//             console.log('✅ Notification permission granted');
-            
-//             // Get FCM token
-//             // REPLACE 'YOUR_VAPID_KEY_HERE' WITH YOUR KEY FROM STEP 4
-//             const token = await messaging.getToken({
-//                 vapidKey: 'BAFmFwgG2yh9bqTWkHjDG7pD4fP9LUxdky7SuN-G0duGqoUa8B8YIB4wrTIYkOrqQJO0ACNRLlgriuOU74nxsCg'
-//             });
-            
-//             console.log('FCM Token:', token);
-            
-//             // Save token to Supabase
-//             await saveFCMToken(token);
-            
-//             return token;
-//         } else {
-//             console.log('❌ Notification permission denied');
-//             return null;
-//         }
-//     } catch (error) {
-//         console.error('Error getting FCM token:', error);
-//         return null;
-//     }
-// }
-
-// Save FCM token to Supabase
-// async function saveFCMToken(token) {
-//     try {
-//         const { error } = await supabase
-//             .from('profiles')
-//             .update({ fcm_token: token })
-//             .eq('id', APP_STATE.currentUser.id);
-        
-//         if (error) throw error;
-        
-//         console.log('✅ FCM token saved to database');
-//     } catch (error) {
-//         console.error('Error saving FCM token:', error);
-//     }
-// }
 
 
         // ==================== GLOBAL STATE ====================
@@ -2672,8 +2570,7 @@ async function sendPushNotification(messageText) {
         return;
     }
     
-    // Initialize Firebase FCM
-    // initializeFirebase();
+   
     
     await initIndexedDB();
     
@@ -2689,9 +2586,9 @@ async function sendPushNotification(messageText) {
             await loadApp();
             
             // Request notification permission after login
-            // setTimeout(() => {
-            //     requestNotificationPermission();
-            // }, 2000); 
+            setTimeout(() => {
+                requestNotificationPermission();
+            }, 2000); 
             // Wait 2 seconds after login
         } else {
             console.log('Keys not found, please login again');
@@ -2710,9 +2607,9 @@ async function sendPushNotification(messageText) {
                 await loadApp();
                 
                 // Request notification permission
-                // setTimeout(() => {
-                //     requestNotificationPermission();
-                // }, 2000);
+                setTimeout(() => {
+                    requestNotificationPermission();
+                }, 2000);
             }
         } else if (event === 'SIGNED_OUT') {
             window.location.reload();

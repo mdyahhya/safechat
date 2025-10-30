@@ -14,8 +14,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+<!-- <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script> -->
 
 
     
@@ -1063,108 +1063,222 @@
             }
         }
 
-        // ==================== FIREBASE FCM INITIALIZATION ====================
-let messaging = null;
+        // ==================== NATIVE WEB PUSH ====================
 
-function initializeFirebase() {
-    try {
-        console.log("Initializing Firebase...");
-        
-        // REPLACE WITH YOUR CONFIG FROM STEP 3
-        const firebaseConfig = {
-            apiKey: "AIzaSyDy2rHzcIppo617w2F4qMCsmiXelvyzvXA",
-            authDomain: "continentchat.firebaseapp.com",
-            projectId: "continentchat",
-            storageBucket: "continentchat.firebasestorage.app",
-            messagingSenderId: "324915461865",
-            appId: "1:324915461865:web:dc885586cdc90c3fdeba78"
-        };
-        
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        
-        // Get messaging instance
-        messaging = firebase.messaging();
-        
-        // Handle foreground messages (when app is open)
-       messaging.onMessage((payload) => {
-    console.log('Message received (foreground):', payload);
+// Convert VAPID key from base64 to Uint8Array
+function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
     
-    // Extract custom data
-    const senderName = payload.data.senderName || 'Someone';
-    const timestamp = new Date().toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    });
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
     
-    // Show in-app notification with custom format
-    showNotification(
-        `New message from ${senderName} • SafeChat • ${timestamp}`,
-        'success'
-    );
-    
-    // Refresh messages if in the same chat
-    if (APP_STATE.currentChat && payload.data && payload.data.chatId === APP_STATE.currentChat.id) {
-        loadMessages(APP_STATE.currentChat.id, true);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
     }
-});
-
-        
-        console.log("✅ Firebase initialized successfully");
-        return true;
-    } catch (error) {
-        console.error("❌ Firebase initialization error:", error);
-        return false;
-    }
+    return outputArray;
 }
 
-// Request notification permission and get FCM token
+// Request notification permission and subscribe
 async function requestNotificationPermission() {
     try {
         console.log('Requesting notification permission...');
         
-        const permission = await Notification.requestPermission();
-        
-        if (permission === 'granted') {
-            console.log('✅ Notification permission granted');
-            
-            // Get FCM token
-            // REPLACE 'YOUR_VAPID_KEY_HERE' WITH YOUR KEY FROM STEP 4
-            const token = await messaging.getToken({
-                vapidKey: 'BAFmFwgG2yh9bqTWkHjDG7pD4fP9LUxdky7SuN-G0duGqoUa8B8YIB4wrTIYkOrqQJO0ACNRLlgriuOU74nxsCg'
-            });
-            
-            console.log('FCM Token:', token);
-            
-            // Save token to Supabase
-            await saveFCMToken(token);
-            
-            return token;
-        } else {
-            console.log('❌ Notification permission denied');
+        // Check if service worker is supported
+        if (!('serviceWorker' in navigator)) {
+            console.error('Service workers not supported');
             return null;
         }
+        
+        // Check if Push API is supported
+        if (!('PushManager' in window)) {
+            console.error('Push notifications not supported');
+            return null;
+        }
+        
+        // Request permission
+        const permission = await Notification.requestPermission();
+        
+        if (permission !== 'granted') {
+            console.log('Notification permission denied');
+            return null;
+        }
+        
+        console.log('✅ Notification permission granted');
+        
+        // Wait for service worker to be ready
+        const registration = await navigator.serviceWorker.ready;
+        
+        // Your PUBLIC VAPID key (we'll generate this in Part 3)
+        const applicationServerKey = urlBase64ToUint8Array(
+            'BMwc1T2JQ2CwiK-AfIevE8Y0Zi2gPqnbVkawzAnkHbPAUwMId85EEVZoETk5w0R3BPirwUdQp3-D759EJ9WegMI'
+        );
+        
+        // Subscribe to push notifications
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: applicationServerKey
+        });
+        
+        console.log('Push subscription:', subscription);
+        
+        // Save subscription to Supabase
+        await savePushSubscription(subscription);
+        
+        return subscription;
+        
     } catch (error) {
-        console.error('Error getting FCM token:', error);
+        console.error('Error requesting notification permission:', error);
         return null;
     }
 }
 
-// Save FCM token to Supabase
-async function saveFCMToken(token) {
+// Save push subscription to Supabase
+async function savePushSubscription(subscription) {
     try {
         const { error } = await supabase
             .from('profiles')
-            .update({ fcm_token: token })
+            .update({ 
+                push_subscription: JSON.parse(JSON.stringify(subscription))
+            })
             .eq('id', APP_STATE.currentUser.id);
         
         if (error) throw error;
         
-        console.log('✅ FCM token saved to database');
+        console.log('✅ Push subscription saved to database');
+        
     } catch (error) {
-        console.error('Error saving FCM token:', error);
+        console.error('Error saving push subscription:', error);
     }
 }
+
+// Unsubscribe from push notifications
+async function unsubscribePush() {
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        
+        if (subscription) {
+            await subscription.unsubscribe();
+            console.log('Unsubscribed from push notifications');
+        }
+        
+        // Remove from database
+        await supabase
+            .from('profiles')
+            .update({ push_subscription: null })
+            .eq('id', APP_STATE.currentUser.id);
+            
+    } catch (error) {
+        console.error('Error unsubscribing:', error);
+    }
+}
+
+
+        // ==================== FIREBASE FCM INITIALIZATION ====================
+// let messaging = null;
+
+// function initializeFirebase() {
+//     try {
+//         console.log("Initializing Firebase...");
+        
+//         // REPLACE WITH YOUR CONFIG FROM STEP 3
+//         const firebaseConfig = {
+//             apiKey: "AIzaSyDy2rHzcIppo617w2F4qMCsmiXelvyzvXA",
+//             authDomain: "continentchat.firebaseapp.com",
+//             projectId: "continentchat",
+//             storageBucket: "continentchat.firebasestorage.app",
+//             messagingSenderId: "324915461865",
+//             appId: "1:324915461865:web:dc885586cdc90c3fdeba78"
+//         };
+        
+//         // Initialize Firebase
+//         firebase.initializeApp(firebaseConfig);
+        
+//         // Get messaging instance
+//         messaging = firebase.messaging();
+        
+//         // Handle foreground messages (when app is open)
+//        messaging.onMessage((payload) => {
+//     console.log('Message received (foreground):', payload);
+    
+//     // Extract custom data
+//     const senderName = payload.data.senderName || 'Someone';
+//     const timestamp = new Date().toLocaleTimeString('en-US', { 
+//         hour: '2-digit', 
+//         minute: '2-digit' 
+//     });
+    
+//     // Show in-app notification with custom format
+//     showNotification(
+//         `New message from ${senderName} • SafeChat • ${timestamp}`,
+//         'success'
+//     );
+    
+//     // Refresh messages if in the same chat
+//     if (APP_STATE.currentChat && payload.data && payload.data.chatId === APP_STATE.currentChat.id) {
+//         loadMessages(APP_STATE.currentChat.id, true);
+//     }
+// });
+
+        
+//         console.log("✅ Firebase initialized successfully");
+//         return true;
+//     } catch (error) {
+//         console.error("❌ Firebase initialization error:", error);
+//         return false;
+//     }
+// }
+
+// Request notification permission and get FCM token
+// async function requestNotificationPermission() {
+//     try {
+//         console.log('Requesting notification permission...');
+        
+//         const permission = await Notification.requestPermission();
+        
+//         if (permission === 'granted') {
+//             console.log('✅ Notification permission granted');
+            
+//             // Get FCM token
+//             // REPLACE 'YOUR_VAPID_KEY_HERE' WITH YOUR KEY FROM STEP 4
+//             const token = await messaging.getToken({
+//                 vapidKey: 'BAFmFwgG2yh9bqTWkHjDG7pD4fP9LUxdky7SuN-G0duGqoUa8B8YIB4wrTIYkOrqQJO0ACNRLlgriuOU74nxsCg'
+//             });
+            
+//             console.log('FCM Token:', token);
+            
+//             // Save token to Supabase
+//             await saveFCMToken(token);
+            
+//             return token;
+//         } else {
+//             console.log('❌ Notification permission denied');
+//             return null;
+//         }
+//     } catch (error) {
+//         console.error('Error getting FCM token:', error);
+//         return null;
+//     }
+// }
+
+// Save FCM token to Supabase
+// async function saveFCMToken(token) {
+//     try {
+//         const { error } = await supabase
+//             .from('profiles')
+//             .update({ fcm_token: token })
+//             .eq('id', APP_STATE.currentUser.id);
+        
+//         if (error) throw error;
+        
+//         console.log('✅ FCM token saved to database');
+//     } catch (error) {
+//         console.error('Error saving FCM token:', error);
+//     }
+// }
 
 
         // ==================== GLOBAL STATE ====================
@@ -1514,10 +1628,16 @@ async function saveFCMToken(token) {
     
     await loadChats();
     await loadContacts();
-    await loadGroupRequests(); // ADD THIS LINE
+    await loadGroupRequests();
     setupRealtimeSubscriptions();
     updatePresence(true);
+    
+    // ✅ ADD THIS: Request notification permission after 2 seconds
+    setTimeout(() => {
+        requestNotificationPermission();
+    }, 2000);
 }
+
 // Group requests badge click handler
 document.getElementById('group-requests-badge').addEventListener('click', () => {
     showGroupRequests();
@@ -2270,7 +2390,7 @@ window.rejectGroupRequest = async function(requestId) {
             }
         }
 
-        async function sendMessage() {
+       async function sendMessage() {
     const input = document.getElementById('message-input');
     const text = input.value.trim();
     
@@ -2288,18 +2408,63 @@ window.rejectGroupRequest = async function(requestId) {
         if (error) throw error;
         
         input.value = '';
-        
-        // Immediately reload messages
         await loadMessages(APP_STATE.currentChat.id);
         
-        // Send push notification (NEW LINE)
-       
+        // ✅ Send push notification
+        await sendPushNotification(text);
         
     } catch (error) {
         console.error('Send message error:', error);
         showNotification('Failed to send message', 'error');
     }
 }
+
+// ✅ NEW FUNCTION: Send push via Vercel
+async function sendPushNotification(messageText) {
+    try {
+        // Get chat members (excluding sender)
+        const { data: members } = await supabase
+            .from('chat_members')
+            .select('user_id, profiles!inner(push_subscription, display_name)')
+            .eq('chat_id', APP_STATE.currentChat.id)
+            .neq('user_id', APP_STATE.currentUser.id);
+        
+        if (!members || members.length === 0) return;
+        
+        // Extract push subscriptions
+        const recipients = members
+            .map(m => m.profiles.push_subscription)
+            .filter(sub => sub !== null);
+        
+        if (recipients.length === 0) return;
+        
+        // Call Vercel function
+        const response = await fetch('https://safechat-push-backend.vercel.app/api/send-push', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                chatId: APP_STATE.currentChat.id,
+                senderId: APP_STATE.currentUser.id,
+                senderName: APP_STATE.currentUser.profile.display_name,
+                messageText: messageText,
+                recipients: recipients
+            })
+        });
+        
+        if (!response.ok) {
+            console.error('Push notification failed:', await response.text());
+        } else {
+            console.log('✅ Push notification sent');
+        }
+        
+    } catch (error) {
+        console.error('Send notification error:', error);
+        // Don't show error to user
+    }
+}
+
 
 
         // Send push notification to chat members
@@ -2508,7 +2673,7 @@ window.rejectGroupRequest = async function(requestId) {
     }
     
     // Initialize Firebase FCM
-    initializeFirebase();
+    // initializeFirebase();
     
     await initIndexedDB();
     
@@ -2524,9 +2689,10 @@ window.rejectGroupRequest = async function(requestId) {
             await loadApp();
             
             // Request notification permission after login
-            setTimeout(() => {
-                requestNotificationPermission();
-            }, 2000); // Wait 2 seconds after login
+            // setTimeout(() => {
+            //     requestNotificationPermission();
+            // }, 2000); 
+            // Wait 2 seconds after login
         } else {
             console.log('Keys not found, please login again');
             await supabase.auth.signOut();
@@ -2544,9 +2710,9 @@ window.rejectGroupRequest = async function(requestId) {
                 await loadApp();
                 
                 // Request notification permission
-                setTimeout(() => {
-                    requestNotificationPermission();
-                }, 2000);
+                // setTimeout(() => {
+                //     requestNotificationPermission();
+                // }, 2000);
             }
         } else if (event === 'SIGNED_OUT') {
             window.location.reload();

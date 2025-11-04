@@ -2318,6 +2318,7 @@ window.rejectGroupRequest = async function(requestId) {
 }
 
 // ✅ NEW FUNCTION: Send push via Vercel
+// Send push notification via Netlify Function
 async function sendPushNotification(messageText) {
     try {
         // Get chat members (excluding sender)
@@ -2327,17 +2328,25 @@ async function sendPushNotification(messageText) {
             .eq('chat_id', APP_STATE.currentChat.id)
             .neq('user_id', APP_STATE.currentUser.id);
         
-        if (!members || members.length === 0) return;
+        if (!members || members.length === 0) {
+            console.log('No members to notify');
+            return;
+        }
         
         // Extract push subscriptions
         const recipients = members
             .map(m => m.profiles.push_subscription)
             .filter(sub => sub !== null);
         
-        if (recipients.length === 0) return;
+        if (recipients.length === 0) {
+            console.log('No recipients with push subscriptions');
+            return;
+        }
         
-        // Call Vercel function
-        const response = await fetch('https://safechat-push-backend.vercel.app/api/send-push', {
+        console.log(`Sending push to ${recipients.length} recipient(s)`);
+        
+        // Call Netlify Function (relative path works since it's same site!)
+        const response = await fetch('/.netlify/functions/sendPushNotification', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -2352,16 +2361,19 @@ async function sendPushNotification(messageText) {
         });
         
         if (!response.ok) {
-            console.error('Push notification failed:', await response.text());
+            const errorText = await response.text();
+            console.error('Push notification failed:', errorText);
         } else {
-            console.log('✅ Push notification sent');
+            const result = await response.json();
+            console.log('✅ Push notification sent:', result);
         }
         
     } catch (error) {
         console.error('Send notification error:', error);
-        // Don't show error to user
+        // Don't show error to user - messaging still works
     }
 }
+
 
 
 

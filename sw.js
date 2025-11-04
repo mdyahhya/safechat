@@ -1,9 +1,8 @@
 // SafeChat Service Worker v1.0.0
 const CACHE_VERSION = 'safechat-v1.0.0';
 const CACHE_NAME = `safechat-cache-${CACHE_VERSION}`;
-const GITHUB_REPO = 'mdyahhya/safechat'; // Replace with your repo
+const GITHUB_REPO = 'mdyahhya/safechat';
 
-// Assets to cache (excluding index.html for always-fresh updates)
 const STATIC_ASSETS = [
   '/styles.css',
   '/app.js',
@@ -15,7 +14,7 @@ const STATIC_ASSETS = [
   '/icons/icon-512x512.png'
 ];
 
-// Install event - cache static assets
+// Install event
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing service worker...');
   event.waitUntil(
@@ -25,12 +24,12 @@ self.addEventListener('install', (event) => {
         console.warn('[SW] Some assets failed to cache:', err);
       });
     }).then(() => {
-      return self.skipWaiting(); // Activate immediately
+      return self.skipWaiting();
     })
   );
 });
 
-// Activate event - clean old caches
+// Activate event
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating service worker...');
   event.waitUntil(
@@ -44,36 +43,29 @@ self.addEventListener('activate', (event) => {
         })
       );
     }).then(() => {
-      return self.clients.claim(); // Take control immediately
+      return self.clients.claim();
     })
   );
 });
 
-// Fetch strategy: Network-first for HTML, Cache-first for static assets
+// Fetch strategy
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Always fetch index.html from network (no cache)
   if (url.pathname === '/' || url.pathname === '/index.html') {
     event.respondWith(
       fetch(request, { cache: 'no-store' })
-        .then(response => {
-          return response;
-        })
-        .catch(() => {
-          return caches.match('/index.html');
-        })
+        .then(response => response)
+        .catch(() => caches.match('/index.html'))
     );
     return;
   }
 
-  // Cache-first for static assets
   if (STATIC_ASSETS.includes(url.pathname) || url.pathname.startsWith('/icons/')) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
         if (cachedResponse) {
-          // Return cached version, but update in background
           fetch(request).then((networkResponse) => {
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, networkResponse);
@@ -92,62 +84,59 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for everything else (API calls, images, etc.)
   event.respondWith(
-    fetch(request).catch(() => {
-      return caches.match(request);
-    })
+    fetch(request).catch(() => caches.match(request))
   );
 });
 
-// Push notification handler
+// ✅ KEEP ONLY THIS Push notification handler
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push notification received');
-  const data = event.data ? event.data.json() : {};
+  console.log('[SW] Push notification received:', event);
+  
+  let data = {};
+  
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    console.error('[SW] Error parsing push data:', e);
+  }
+  
   const title = data.title || 'SafeChat';
   const options = {
-    body: data.body || 'You have a new message',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-96x96.png',
+    body: data.body || 'You have a new message in SafeChat',
+    icon: '/chaticon.png',
+    badge: '/chaticon.png',
     vibrate: [200, 100, 200],
-    data: data.data || {},
-    actions: data.actions || [
-      { action: 'open', title: 'Open', icon: '/icons/icon-96x96.png' },
-      { action: 'close', title: 'Close', icon: '/icons/icon-96x96.png' }
-    ],
-    tag: data.tag || 'safechat-notification',
+    tag: 'safechat-message',
+    data: data,
     requireInteraction: false
   };
-
+  
   event.waitUntil(
     self.registration.showNotification(title, options)
   );
 });
 
-// Notification click handler
+// ✅ KEEP ONLY THIS Notification click handler
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event.action);
+  console.log('[SW] Notification clicked:', event);
   event.notification.close();
-
-  if (event.action === 'open' || !event.action) {
-    event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-        // Check if app is already open
-        for (let client of clientList) {
-          if (client.url.includes(self.registration.scope) && 'focus' in client) {
-            return client.focus();
-          }
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (let client of clientList) {
+        if (client.url.includes(self.registration.scope) && 'focus' in client) {
+          return client.focus();
         }
-        // Open new window if not open
-        if (clients.openWindow) {
-          return clients.openWindow('/');
-        }
-      })
-    );
-  }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('/');
+      }
+    })
+  );
 });
 
-// Background sync for offline messages
+// Background sync
 self.addEventListener('sync', (event) => {
   console.log('[SW] Background sync:', event.tag);
   if (event.tag === 'sync-messages') {
@@ -156,14 +145,13 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncMessages() {
-  // This will be triggered when connection is restored
   const clients = await self.clients.matchAll();
   clients.forEach(client => {
     client.postMessage({ type: 'SYNC_MESSAGES' });
   });
 }
 
-// Periodic background sync (for scheduled notifications)
+// Periodic sync for scheduled notifications
 self.addEventListener('periodicsync', (event) => {
   if (event.tag === 'check-scheduled-notifications') {
     event.waitUntil(checkScheduledNotifications());
@@ -174,28 +162,26 @@ async function checkScheduledNotifications() {
   const now = new Date();
   const hour = now.getHours();
   
-  // Morning notification (9 AM)
   if (hour === 9) {
     await self.registration.showNotification('SafeChat', {
       body: 'Good morning! Check your messages 👋',
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-96x96.png',
+      icon: '/chaticon.png',
+      badge: '/chaticon.png',
       tag: 'morning-reminder'
     });
   }
   
-  // Evening notification (6 PM)
   if (hour === 18) {
     await self.registration.showNotification('SafeChat', {
       body: 'Good evening! You might have new messages 🌙',
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-96x96.png',
+      icon: '/chaticon.png',
+      badge: '/chaticon.png',
       tag: 'evening-reminder'
     });
   }
 }
 
-// Message handler for communication with main app
+// Message handler
 self.addEventListener('message', (event) => {
   console.log('[SW] Message received:', event.data);
   
@@ -215,53 +201,3 @@ self.addEventListener('message', (event) => {
     );
   }
 });
-
-// Native Web Push - Handle push events
-self.addEventListener('push', (event) => {
-  console.log('[SW] Push notification received:', event);
-  
-  let data = {};
-  
-  try {
-    data = event.data ? event.data.json() : {};
-  } catch (e) {
-    console.error('[SW] Error parsing push data:', e);
-  }
-  
-  const title = data.title || 'New message';
-  const options = {
-    body: data.body || 'You have a new message in SafeChat',
-    icon: '/chaticon.png',
-    badge: '/chaticon.png',
-    vibrate: [200, 100, 200],
-    tag: 'safechat-message',
-    data: data,
-    requireInteraction: false
-  };
-  
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  );
-});
-
-// Handle notification clicks
-self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event);
-  event.notification.close();
-  
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Focus existing window
-      for (let client of clientList) {
-        if (client.url.includes(self.registration.scope) && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      // Open new window
-      if (clients.openWindow) {
-        return clients.openWindow('/');
-      }
-    })
-  );
-});
-

@@ -51,7 +51,7 @@ exports.handler = async function(event, context) {
 
     // Set VAPID details
     webpush.setVapidDetails(
-      'mundewadiyahya@gmail.com',  // ← Change to your email
+      'mailto:mundewadiyahya@gmail.com',  // ← Change to your email
       VAPID_PUBLIC_KEY,
       VAPID_PRIVATE_KEY
     );

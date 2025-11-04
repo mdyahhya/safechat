@@ -1,0 +1,8 @@
+{
+  "name": "safechat",
+  "version": "1.0.0",
+  "description": "SafeChat - Encrypted Messaging App",
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

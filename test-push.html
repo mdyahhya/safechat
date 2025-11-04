@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeChat Push Notification Diagnostic Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        .status.pending {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .status.success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status.error {
+            background: #f44336;
+            color: white;
+        }
+
+        .status.info {
+            background: #2196f3;
+            color: white;
+        }
+
+        .result {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            border: 1px solid #e0e0e0;
+        }
+
+        .result pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .log {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+
+        .timestamp {
+            color: #888;
+            font-size: 11px;
+        }
+
+        .error-text {
+            color: #ff6b6b;
+        }
+
+        .success-text {
+            color: #51cf66;
+        }
+
+        .warning-text {
+            color: #ffd43b;
+        }
+
+        .info-text {
+            color: #4dabf7;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .summary h3 {
+            margin-bottom: 15px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔔 SafeChat Push Notification Diagnostics</h1>
+        <p class="subtitle">Complete diagnostic test for web push notifications</p>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress"></div>
+        </div>
+
+        <!-- Test 1: Browser Support -->
+        <div class="test-section">
+            <h2>
+                1. Browser Support Check
+                <span class="status pending" id="status-1">Pending</span>
+            </h2>
+            <div class="result" id="result-1">Waiting to run...</div>
+        </div>
+
+        <!-- Test 2: Service Worker -->
+        <div class="test-section">
+            <h2>
+                2. Service Worker Registration
+                <span class="status pending" id="status-2">Pending</span>
+            </h2>
+            <div class="result" id="result-2">Waiting to run...</div>
+        </div>
+
+        <!-- Test 3: Notification Permission -->
+        <div class="test-section">
+            <h2>
+                3. Notification Permission
+                <span class="status pending" id="status-3">Pending</span>
+            </h2>
+            <button onclick="requestPermission()">Request Permission</button>
+            <div class="result" id="result-3">Waiting to run...</div>
+        </div>
+
+        <!-- Test 4: Push Subscription -->
+        <div class="test-section">
+            <h2>
+                4. Push Subscription
+                <span class="status pending" id="status-4">Pending</span>
+            </h2>
+            <button onclick="subscribeToPush()">Subscribe to Push</button>
+            <div class="result" id="result-4">Waiting to run...</div>
+        </div>
+
+        <!-- Test 5: Netlify Function -->
+        <div class="test-section">
+            <h2>
+                5. Netlify Function Test
+                <span class="status pending" id="status-5">Pending</span>
+            </h2>
+            <button onclick="testNetlifyFunction()">Test Function</button>
+            <div class="result" id="result-5">Waiting to run...</div>
+        </div>
+
+        <!-- Test 6: Send Test Notification -->
+        <div class="test-section">
+            <h2>
+                6. Send Test Notification
+                <span class="status pending" id="status-6">Pending</span>
+            </h2>
+            <button onclick="sendTestNotification()">Send Test Push</button>
+            <div class="result" id="result-6">Waiting to run...</div>
+        </div>
+
+        <!-- Live Console Log -->
+        <div class="test-section">
+            <h2>📋 Live Console Log</h2>
+            <button onclick="clearLog()">Clear Log</button>
+            <div class="log" id="console-log"></div>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary">
+            <h3>📊 Test Summary</h3>
+            <div class="summary-item">
+                <span>Tests Passed:</span>
+                <span id="tests-passed">0/6</span>
+            </div>
+            <div class="summary-item">
+                <span>Tests Failed:</span>
+                <span id="tests-failed">0/6</span>
+            </div>
+            <div class="summary-item">
+                <span>Overall Status:</span>
+                <span id="overall-status">Not Started</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const VAPID_PUBLIC_KEY = 'BMwc1T2JQ2CwiK-AfIevE8Y0Zi2gPqnbVkawzAnkHbPAUwMId85EEVZoETk5w0R3BPirwUdQp3-D759EJ9WegMI'; // Replace with your key
+        const NETLIFY_FUNCTION_URL = '/.netlify/functions/sendPushNotification'; // Update if different
+        
+        let testResults = {
+            passed: 0,
+            failed: 0
+        };
+
+        let pushSubscription = null;
+
+        // Logging utilities
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('console-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                error: 'error-text',
+                success: 'success-text',
+                warning: 'warning-text',
+                info: 'info-text'
+            };
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="timestamp">[${timestamp}]</span>
+                <span class="${colors[type]}">${message}</span>
+            `;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            
+            console.log(`[${type.toUpperCase()}]`, message);
+        }
+
+        function clearLog() {
+            document.getElementById('console-log').innerHTML = '';
+            log('Console cleared', 'info');
+        }
+
+        function updateStatus(testNum, status, message) {
+            const statusEl = document.getElementById(`status-${testNum}`);
+            const resultEl = document.getElementById(`result-${testNum}`);
+            
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            
+            resultEl.innerHTML = `<pre>${message}</pre>`;
+            
+            if (status === 'success') {
+                testResults.passed++;
+            } else if (status === 'error') {
+                testResults.failed++;
+            }
+            
+            updateSummary();
+            updateProgress();
+        }
+
+        function updateSummary() {
+            document.getElementById('tests-passed').textContent = `${testResults.passed}/6`;
+            document.getElementById('tests-failed').textContent = `${testResults.failed}/6`;
+            
+            const total = testResults.passed + testResults.failed;
+            if (total === 0) {
+                document.getElementById('overall-status').textContent = 'Not Started';
+            } else if (testResults.failed === 0 && testResults.passed === 6) {
+                document.getElementById('overall-status').textContent = '✅ All Tests Passed!';
+            } else if (testResults.failed > 0) {
+                document.getElementById('overall-status').textContent = '❌ Some Tests Failed';
+            } else {
+                document.getElementById('overall-status').textContent = '⏳ In Progress...';
+            }
+        }
+
+        function updateProgress() {
+            const total = testResults.passed + testResults.failed;
+            const percentage = (total / 6) * 100;
+            document.getElementById('progress').style.width = `${percentage}%`;
+        }
+
+        // Helper: Convert VAPID key
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding)
+                .replace(/\-/g, '+')
+                .replace(/_/g, '/');
+            
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        // Test 1: Browser Support
+        async function testBrowserSupport() {
+            log('Testing browser support...', 'info');
+            
+            const checks = {
+                'Service Worker': 'serviceWorker' in navigator,
+                'Push Manager': 'PushManager' in window,
+                'Notifications': 'Notification' in window,
+                'HTTPS': window.location.protocol === 'https:' || window.location.hostname === 'localhost'
+            };
+            
+            const results = Object.entries(checks).map(([key, value]) => 
+                `${key}: ${value ? '✅ Supported' : '❌ Not Supported'}`
+            ).join('\n');
+            
+            const allSupported = Object.values(checks).every(v => v);
+            
+            if (allSupported) {
+                updateStatus(1, 'success', results);
+                log('✅ All browser features supported', 'success');
+            } else {
+                updateStatus(1, 'error', results);
+                log('❌ Some browser features not supported', 'error');
+            }
+        }
+
+        // Test 2: Service Worker Registration
+        async function testServiceWorker() {
+            log('Testing service worker registration...', 'info');
+            
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                
+                if (registrations.length === 0) {
+                    updateStatus(2, 'error', 'No service workers registered');
+                    log('❌ No service workers found', 'error');
+                    return;
+                }
+                
+                const details = registrations.map((reg, i) => 
+                    `Service Worker ${i + 1}:\n` +
+                    `  Scope: ${reg.scope}\n` +
+                    `  State: ${reg.active ? reg.active.state : 'Not active'}\n` +
+                    `  Script URL: ${reg.active ? reg.active.scriptURL : 'N/A'}`
+                ).join('\n\n');
+                
+                updateStatus(2, 'success', `Found ${registrations.length} service worker(s):\n\n${details}`);
+                log(`✅ Found ${registrations.length} service worker(s)`, 'success');
+                
+            } catch (error) {
+                updateStatus(2, 'error', `Error: ${error.message}`);
+                log(`❌ Service worker error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 3: Request Notification Permission
+        async function requestPermission() {
+            log('Requesting notification permission...', 'info');
+            
+            try {
+                const permission = await Notification.requestPermission();
+                
+                if (permission === 'granted') {
+                    updateStatus(3, 'success', `Permission: ${permission}\n\nYou can now receive notifications!`);
+                    log('✅ Notification permission granted', 'success');
+                } else if (permission === 'denied') {
+                    updateStatus(3, 'error', `Permission: ${permission}\n\nUser denied notification permission.`);
+                    log('❌ Notification permission denied', 'error');
+                } else {
+                    updateStatus(3, 'warning', `Permission: ${permission}\n\nPermission request dismissed.`);
+                    log('⚠️ Notification permission dismissed', 'warning');
+                }
+                
+            } catch (error) {
+                updateStatus(3, 'error', `Error: ${error.message}`);
+                log(`❌ Permission error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 4: Subscribe to Push
+        async function subscribeToPush() {
+            log('Subscribing to push notifications...', 'info');
+            
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                
+                // Check for existing subscription
+                let subscription = await registration.pushManager.getSubscription();
+                
+                if (subscription) {
+                    log('ℹ️ Existing subscription found, unsubscribing...', 'info');
+                    await subscription.unsubscribe();
+                }
+                
+                // Create new subscription
+                const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+                
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: applicationServerKey
+                });
+                
+                pushSubscription = subscription;
+                
+                const details = JSON.stringify(subscription.toJSON(), null, 2);
+                
+                updateStatus(4, 'success', `✅ Successfully subscribed!\n\nSubscription details:\n${details}`);
+                log('✅ Push subscription created', 'success');
+                
+            } catch (error) {
+                updateStatus(4, 'error', `Error: ${error.message}\n\nMake sure:\n- Notification permission is granted\n- VAPID key is correct\n- Service worker is registered`);
+                log(`❌ Subscription error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 5: Test Netlify Function
+        async function testNetlifyFunction() {
+            log('Testing Netlify function...', 'info');
+            
+            try {
+                const response = await fetch(NETLIFY_FUNCTION_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        test: true,
+                        recipients: []
+                    })
+                });
+                
+                const data = await response.json();
+                const details = `Status: ${response.status}\nURL: ${NETLIFY_FUNCTION_URL}\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+                
+                if (response.ok) {
+                    updateStatus(5, 'success', details);
+                    log('✅ Netlify function is working', 'success');
+                } else {
+                    updateStatus(5, 'error', details);
+                    log(`❌ Netlify function error: ${response.status}`, 'error');
+                }
+                
+            } catch (error) {
+                updateStatus(5, 'error', `Error: ${error.message}\n\nMake sure:\n- Netlify function is deployed\n- URL is correct\n- Environment variables are set`);
+                log(`❌ Netlify function error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 6: Send Test Notification
+        async function sendTestNotification() {
+            log('Sending test notification...', 'info');
+            
+            if (!pushSubscription) {
+                updateStatus(6, 'error', 'No push subscription available.\n\nPlease complete Test 4 first.');
+                log('❌ No push subscription', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(NETLIFY_FUNCTION_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        chatId: 'test-chat',
+                        senderId: 'test-sender',
+                        senderName: 'Test User',
+                        messageText: 'This is a test notification!',
+                        recipients: [pushSubscription.toJSON()]
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus(6, 'success', `✅ Test notification sent!\n\nCheck your browser for the notification.\n\nResponse:\n${JSON.stringify(data, null, 2)}`);
+                    log('✅ Test notification sent successfully', 'success');
+                } else {
+                    updateStatus(6, 'error', `Failed to send notification.\n\nStatus: ${response.status}\nResponse:\n${JSON.stringify(data, null, 2)}`);
+                    log(`❌ Failed to send notification: ${response.status}`, 'error');
+                }
+                
+            } catch (error) {
+                updateStatus(6, 'error', `Error: ${error.message}`);
+                log(`❌ Send notification error: ${error.message}`, 'error');
+            }
+        }
+
+        // Run initial tests
+        window.addEventListener('load', async () => {
+            log('🚀 Starting diagnostic tests...', 'info');
+            
+            await testBrowserSupport();
+            await testServiceWorker();
+            
+            // Check initial permission status
+            if (Notification.permission !== 'default') {
+                const permissionText = `Current permission: ${Notification.permission}`;
+                updateStatus(3, Notification.permission === 'granted' ? 'success' : 'error', permissionText);
+                log(`ℹ️ ${permissionText}`, 'info');
+            }
+            
+            log('✅ Initial tests complete', 'success');
+        });
+    </script>
+</body>
+</html>

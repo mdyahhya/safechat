@@ -106,7 +106,8 @@ self.addEventListener('push', (event) => {
     body: data.body || 'You have a new message in SafeChat',
     icon: '/chaticon.png',
     badge: '/chaticon.png',
-    vibrate: [200, 100, 200],
+    // 3 seconds vibration + 1 second pause repeated 4 times: total pattern duration 16 seconds
+    vibrate: [3000, 1000, 3000, 1000, 3000, 1000, 3000],
     tag: 'safechat-message',
     data: data,
     requireInteraction: false
@@ -116,7 +117,6 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(title, options)
   );
 });
-
 // ✅ KEEP ONLY THIS Notification click handler
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification clicked:', event);

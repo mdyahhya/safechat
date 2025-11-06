@@ -89,7 +89,31 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ✅ KEEP ONLY THIS Push notification handler
+// ✅ HELPER FUNCTION: Show multiple notifications sequentially
+async function showMultipleNotifications(title, body, count = 3, delayMs = 2000) {
+  let data = {};
+  
+  for (let i = 0; i < count; i++) {
+    console.log(`[SW] Showing notification ${i + 1} of ${count}`);
+    
+    await self.registration.showNotification(title, {
+      body: `${body} (${i + 1}/${count})`,
+      icon: '/chaticon.png',
+      badge: '/chaticon.png',
+      vibrate: [3000, 1000, 3000, 1000, 3000], // 3 sec vibration + 1 sec pause repeated 3 times = ~15 seconds per notification
+      tag: `safechat-message-${i}`, // Different tag for each notification so they don't replace each other
+      data: data,
+      requireInteraction: false
+    });
+
+    // Wait before showing next notification (delay between notifications)
+    if (i < count - 1) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
+// ✅ UPDATED PUSH EVENT HANDLER
 self.addEventListener('push', (event) => {
   console.log('[SW] Push notification received:', event);
   
@@ -102,21 +126,14 @@ self.addEventListener('push', (event) => {
   }
   
   const title = data.title || 'SafeChat';
-  const options = {
-    body: data.body || 'You have a new message in SafeChat',
-    icon: '/chaticon.png',
-    badge: '/chaticon.png',
-    // 3 seconds vibration + 1 second pause repeated 4 times: total pattern duration 16 seconds
-    vibrate: [3000, 1000, 3000, 1000, 3000, 1000, 3000],
-    tag: 'safechat-message',
-    data: data,
-    requireInteraction: false
-  };
-  
+  const body = data.body || 'You have a new message in SafeChat';
+
+  // Show 3 notifications one after another with 2 seconds delay between them
   event.waitUntil(
-    self.registration.showNotification(title, options)
+    showMultipleNotifications(title, body, 3, 2000)
   );
 });
+
 // ✅ KEEP ONLY THIS Notification click handler
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification clicked:', event);

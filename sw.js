@@ -89,8 +89,8 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ✅ HELPER FUNCTION: Show multiple notifications sequentially
-async function showMultipleNotifications(title, body, count = 3, delayMs = 2000) {
+// ✅ HELPER FUNCTION: Show multiple notifications sequentially with intense vibration
+async function showMultipleNotifications(title, body, count = 5, delayMs = 1000) {
   let data = {};
   
   for (let i = 0; i < count; i++) {
@@ -100,13 +100,14 @@ async function showMultipleNotifications(title, body, count = 3, delayMs = 2000)
       body: `${body} (${i + 1}/${count})`,
       icon: '/chaticon.png',
       badge: '/chaticon.png',
-      vibrate: [3000, 1000, 3000, 1000, 3000], // 3 sec vibration + 1 sec pause repeated 3 times = ~15 seconds per notification
-      tag: `safechat-message-${i}`, // Different tag for each notification so they don't replace each other
+      // More intense vibration: faster pulses (500ms vibrate + 100ms pause pattern repeated)
+      vibrate: [500, 100, 500, 100, 500, 100, 500, 100, 500],
+      tag: `safechat-message-${i}`,
       data: data,
       requireInteraction: false
     });
 
-    // Wait before showing next notification (delay between notifications)
+    // Wait before showing next notification (1 second delay)
     if (i < count - 1) {
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
@@ -128,9 +129,10 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'SafeChat';
   const body = data.body || 'You have a new message in SafeChat';
 
-  // Show 3 notifications one after another with 2 seconds delay between them
+  // Show 5 notifications one after another with 1 second gap between them
+  // Each notification vibrates with intense pattern for ~3 seconds
   event.waitUntil(
-    showMultipleNotifications(title, body, 3, 2000)
+    showMultipleNotifications(title, body, 5, 1000)
   );
 });
 

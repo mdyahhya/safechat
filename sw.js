@@ -5,13 +5,14 @@ const GITHUB_REPO = 'mdyahhya/safechat';
 
 const STATIC_ASSETS = [
   '/styles.css',
-  '/app.js',
-  '/crypto.js',
-  '/realtime.js',
-  '/storage.js',
+  
   '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+  '/chaticon48.png',
+'/chaticon72.png',
+'/chaticon192.png',
+'/chaticon256.png',
+'/chaticon512.png'
+
 ];
 
 // Install event
@@ -184,8 +185,8 @@ async function checkScheduledNotifications() {
   if (hour === 9) {
     await self.registration.showNotification('SafeChat', {
       body: 'Good morning! Check your messages 👋',
-      icon: '/chaticon.png',
-      badge: '/chaticon.png',
+      icon: '/chaticon1.png',
+      badge: '/chaticon1.png',
       tag: 'morning-reminder'
     });
   }
@@ -193,8 +194,8 @@ async function checkScheduledNotifications() {
   if (hour === 18) {
     await self.registration.showNotification('SafeChat', {
       body: 'Good evening! You might have new messages 🌙',
-      icon: '/chaticon.png',
-      badge: '/chaticon.png',
+      icon: '/chaticon1.png',
+      badge: '/chaticon1.png',
       tag: 'evening-reminder'
     });
   }

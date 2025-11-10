@@ -13,31 +13,31 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "icons/chaticon48.png",
+      "src": "chaticon48.png",
       "sizes": "48x48",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/chaticon72.png",
+      "src": "chaticon72.png",
       "sizes": "72x72",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icons/chaticon192.png",
+      "src": "chaticon192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icons/chaticon256.png",
+      "src": "chaticon256.png",
       "sizes": "256x256",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icons/chaticon512.png",
+      "src": "chaticon512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -45,14 +45,14 @@
   ],
   "screenshots": [
     {
-      "src": "screenshots/homepage.jpg",
+      "src": "homepage.jpg",
       "sizes": "1080x1920",
-      "type": "image/jpeg"
+      "type": "image/jpg"
     },
     {
-      "src": "screenshots/groupsection.jpg",
+      "src": "groupsection.jpg",
       "sizes": "1080x1920",
-      "type": "image/jpeg"
+      "type": "image/jpg"
     }
   ],
   "categories": ["social", "communication"],

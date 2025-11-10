@@ -61,13 +61,15 @@
       "name": "New Chat",
       "short_name": "Chat",
       "description": "Start a new conversation",
-      "url": "/?action=new-chat"
+      "url": "/?action=new-chat",
+      "icons": [{ "src": "/chaticon72.png", "sizes": "72x72" }]
     },
     {
       "name": "New Group",
       "short_name": "Group",
       "description": "Create a new group",
-      "url": "/?action=new-group"
+      "url": "/?action=new-group",
+      "icons": [{ "src": "/chaticon72.png", "sizes": "72x72" }]
     }
   ]
 }

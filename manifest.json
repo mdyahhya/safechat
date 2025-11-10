@@ -64,14 +64,14 @@
       "short_name": "Chat",
       "description": "Start a new conversation",
       "url": "/?action=new-chat",
-      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+      
     },
     {
       "name": "New Group",
       "short_name": "Group",
       "description": "Create a new group",
       "url": "/?action=new-group",
-      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+     
     }
   ]
 }

@@ -58,6 +58,20 @@
       "purpose": "any maskable"
     }
   ],
+
+  "screenshots": [
+  {
+    "src": "homepage.jpg",
+    "sizes": "1080x1920",
+    "type": "image/jpg"
+  },
+  {
+    "src": "groupsection.jpg",
+    "sizes": "1080x1920",
+    "type": "image/jpg"
+  }
+],
+
   "categories": ["social", "communication"],
   "screenshots": [],
   "shortcuts": [

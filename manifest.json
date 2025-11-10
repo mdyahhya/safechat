@@ -11,49 +11,32 @@
   "theme_color": "#075E54",
   "icons": [
     {
-      "src": "chaticon.png",
+      "src": "chaticon72.png",
       "sizes": "72x72",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "chaticon.png",
-      "sizes": "96x96",
+      "src": "chaticon48.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    
+    {
+      "src": "chaticon256.png",
+      "sizes": "256x256",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "chaticon.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "chaticon.png",
-      "sizes": "144x144",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "chaticon.png",
-      "sizes": "152x152",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "chaticon.png",
+      "src": "chaticon192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "chaticon.png",
-      "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "chaticon.png",
+      "src": "chaticon512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

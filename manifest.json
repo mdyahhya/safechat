@@ -3,6 +3,7 @@
   "short_name": "SafeChat by Continent",
   "description": "End-to-end encrypted messaging app with zero data retention",
   "start_url": "/",
+  "id": "com.dominal.safechats",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
